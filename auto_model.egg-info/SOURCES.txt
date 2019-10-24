@@ -1,8 +1,0 @@
-README.md
-setup.py
-auto_model/__init__.py
-auto_model/lightgbm_optimizer.py
-auto_model.egg-info/PKG-INFO
-auto_model.egg-info/SOURCES.txt
-auto_model.egg-info/dependency_links.txt
-auto_model.egg-info/top_level.txt
