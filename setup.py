@@ -1,0 +1,26 @@
+import setuptools
+
+with open("README.md", 'r') as fh:
+    long_descrip = fh.read()
+
+setuptools.setup(
+    name="auto_model",
+    version='0.2',
+    description="Automatic Machine Learning Model training",
+    long_description=long_descrip,
+    author='Kai Mo',
+    author_email='kam455@pitt.edu',
+    maintainer='Kai Mo',
+    maintainer_email='kam455@pitt.edu',
+    url='https://github.com/kaimo455/Auto_model.git',
+    download_url='https://github.com/kaimo455/Auto_model.git',
+    packages=setuptools.find_packages(),
+    py_modules=['lightgbm_optimizer'],
+    #scripts='placeholder',
+    #ext_modules='placeholder',
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: Unix",
+    ],
+)
