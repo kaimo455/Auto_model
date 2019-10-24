@@ -1,4 +1,4 @@
-dist/
-build/
-auto_model.egg-info/
-.vscode/
+dist
+build
+*.egg-info
+.vscode
