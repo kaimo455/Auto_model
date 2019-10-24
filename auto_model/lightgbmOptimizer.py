@@ -1,3 +1,5 @@
+#!usr/bin python
+
 import itertools
 import lightgbm
 import json

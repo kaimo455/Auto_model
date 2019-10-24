@@ -5,9 +5,10 @@ with open("README.md", 'r') as fh:
 
 setuptools.setup(
     name="auto_model",
-    version='0.2',
+    version='0.21',
     description="Automatic Machine Learning Model training",
     long_description=long_descrip,
+    long_description_content_type="text/markdown",
     author='Kai Mo',
     author_email='kam455@pitt.edu',
     maintainer='Kai Mo',
@@ -15,7 +16,7 @@ setuptools.setup(
     url='https://github.com/kaimo455/Auto_model.git',
     download_url='https://github.com/kaimo455/Auto_model.git',
     packages=setuptools.find_packages(),
-    py_modules=['lightgbm_optimizer'],
+    #py_modules=['lightgbm_optimizer'],
     #scripts='placeholder',
     #ext_modules='placeholder',
     classifiers=[
