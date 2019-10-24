@@ -4,8 +4,8 @@ with open("README.md", 'r') as fh:
     long_descrip = fh.read()
 
 setuptools.setup(
-    name="auto_model",
-    version='0.21',
+    name="pyautomodel",
+    version='0.12',
     description="Automatic Machine Learning Model training",
     long_description=long_descrip,
     long_description_content_type="text/markdown",

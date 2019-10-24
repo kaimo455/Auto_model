@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 
-class LightGBM_binary_hyperopt:
+class lightgbm_hyperopt_binary:
     """
-    Use hyperopt to optimize lightgbm model.
+    Use hyperopt to optimize lightgbm binary classifier.
     """
     def __init__(self, X_train, y_train, X_eval, y_eval, X_test, y_test, \
                  base_params: dict, cat_params: dict, int_params: dict, float_params: dict, \
