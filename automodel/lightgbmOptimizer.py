@@ -1,4 +1,4 @@
-#!usr/bin python
+#!usr/bin python3
 
 import itertools
 import lightgbm
@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 
-class lightgbm_hyperopt_binary:
+class LightgbmOptimizerBinary:
     """
     Use hyperopt to optimize lightgbm binary classifier.
     """
