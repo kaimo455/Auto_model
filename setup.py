@@ -5,7 +5,7 @@ with open("README.md", 'r') as fh:
 
 setuptools.setup(
     name="pyautomodel",
-    version='0.14',
+    version='0.15',
     description="Automatic Machine Learning Model training",
     long_description=long_descrip,
     long_description_content_type="text/markdown",
