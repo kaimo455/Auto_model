@@ -1,6 +1,5 @@
 #!usr/bin python3
 
-import itertools
 import lightgbm
 import json
 import pickle
@@ -105,7 +104,7 @@ class LightgbmOptimizerBinary:
 
     def optimize_lgb(self):
         """
-        The main entrence of optimizing LightGBM.
+        The main entrance of optimizing LightGBM.
         """
         best_params = fmin(self._object_score, self.all_params, algo=tpe.suggest, \
                            max_evals = self.num_opts, trials=self.trials)

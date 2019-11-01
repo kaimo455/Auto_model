@@ -12,7 +12,7 @@ PARAMS_EXAMPLES = {
             'seed': 1213, \
             'bagging_seed': 42, \
             'feature_fraction_seed': 3, \
-            'first_metric_only': False, \
+            'first_metric_only': True, \
             'max_delta_step': 0, \
             'bin_construct_sample_cnt': 200000, \
             'histogram_pool_size': -1, \
