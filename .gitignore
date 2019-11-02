@@ -126,3 +126,9 @@ dmypy.json
 
 # vscode editor
 .vscode/
+
+# test directory
+test
+
+# pycharm setting
+.idea

@@ -29,7 +29,7 @@ class RandomForestOptimizer:
         self.cat_params_hp = {param: hp.choice(param, candidates) \
                       for param, candidates in self.cat_params.items()}
         # integer hyperparameters
-        self.int_params_hp = {param: hp.choice(param, np.arange(*start_end_step, dtype=np.int)) \
+        self.int_params_hp = {param: hp.uniform(param, np.arange(*start_end_step, dtype=np.int)) \
                               for param, start_end_step in self.int_params.items()}
         # float hyperparameters
         self.float_params_hp = {param: hp.uniform(param, *candidates) \
@@ -80,6 +80,9 @@ class RandomForestOptimizer:
                            max_evals = self.num_opts, trials=self.trials)
         # save trials for further fine-tune
         pickle.dump(self.trials, open(self.trials_path, "wb"))
+        # convert categorical from index back to value
+        for key, value in self.cat_params.items():
+            best_params[key] = value[best_params[key]]
         # store best hyperparameters
         self.best_params = best_params
         return self.best_params
