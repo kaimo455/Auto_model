@@ -177,7 +177,7 @@ class Preprocessor:
     
     @staticmethod
     def make_folds(X, y=None, n_splits=5, strategy=None, group=None, shuffle=True, random_state=None):
-        ### strategy = None / 'stratified' / 'group'
+        """ strategy = None / 'stratified' / 'group' """
 
         # stratified strategy
         if strategy == "stratified":

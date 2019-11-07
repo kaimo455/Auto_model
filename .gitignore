@@ -132,3 +132,6 @@ test
 
 # pycharm setting
 .idea
+
+# test data
+data

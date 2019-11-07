@@ -5,6 +5,7 @@ import json
 import pickle
 import numpy as np
 import pandas as pd
+from preprocessor import Preprocessor
 from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 
 
@@ -16,7 +17,8 @@ class LightgbmOptimizerBinary:
     def __init__(self, X_train, y_train, X_eval, y_eval, X_test, y_test,
                  base_params: dict, cat_params: dict, int_params: dict, float_params: dict,
                  num_opts=1000, trials_path='./trials.pkl', load_trials=False,
-                 lgb_num_boost_round=3000, lgb_early_stopping_rounds=400):
+                 lgb_num_boost_round=3000, lgb_early_stopping_rounds=400, 
+                 cv=None, strategy='stratified', group=None, shuffle=True, random_state=1213):
         """LightGBM hyperparameters optimizer initializer.
         
         Arguments:
@@ -53,6 +55,13 @@ class LightgbmOptimizerBinary:
         # optimizer
         self.num_opts, self.trials_path, self.load_trials = num_opts, trials_path, load_trials
         self.trials = self._init_trials()
+        # whether use CV to trian and optimize model
+        if cv:
+            self._n_splits = cv
+            self._strategy = strategy
+            self._group = group
+            self._shuffle = shuffle
+            self._random_state = random_state
 
     def _init_params(self):
         """
@@ -83,6 +92,11 @@ class LightgbmOptimizerBinary:
             trials = Trials()
         return trials
 
+    def _init_folds(self):
+        self._folds = Preprocessor.make_folds(self.X_train, self.y_train, 
+                                              n_splits=self._n_splits, strategy=self._strategy, group=self._group,
+                                              shuffle=self._shuffle, random_state=self._random_state)
+
     def _index2value(self):
         """
         Convert hyperopt.choice optimized index back to original values
@@ -90,7 +104,7 @@ class LightgbmOptimizerBinary:
         if not hasattr(self, 'best_params'):
             raise ValueError('Best hyperparameters not exist.')
         if not self.best_params:
-            raise AttributeError('Model has not been .')
+            raise AttributeError('Model has not been trained.')
         # convert categorical from index back to value
         for key, value in self.cat_params.items():
             self.best_params[key] = value[self.best_params[key]]
@@ -111,27 +125,73 @@ class LightgbmOptimizerBinary:
                                  verbose_eval=-1,
                                  callbacks=[lightgbm.callback.reset_parameter(
                                      learning_rate=lambda current_round: 0.6 * (0.99 ** current_round))])
+        # define return dict
+        ret_dict = {'status': STATUS_OK}
+        # get auc results
+        auc_train = best_score['Train']['auc']
+        auc_eval = best_score['Eval']['auc']
+        ret_dict.update({'train_auc': auc_train, 'eval_auc': auc_eval})
+        # get all other metrics results
+        if 'binary_error' in params['metric'].split(','):
+            error_train = best_score['Train']['binary_error']
+            error_eval = best_score['Eval']['binary_error']
+            ret_dict.update({'train_error': error_train, 'eval_error': error_eval})
+        # define loss
         # we invoke difference between train auc and eval auc as penalty
         # eval_auc - (train_auc - eval_auc)
         # that is maximize inverse of the above formula
-        return {'loss': -(2 * lgb_clf.best_score['Eval']['auc'] - lgb_clf.best_score['Train']['auc']),
-                'train_auc': lgb_clf.best_score['Train']['auc'],
-                'eval_auc': lgb_clf.best_score['Eval']['auc'],
-                'train_error': lgb_clf.best_score['Train']['binary_error'],
-                'eval_error': lgb_clf.best_score['Eval']['binary_error'],
-                'status': STATUS_OK}
+        loss = -(2 * auc_eval - auc_train)
+        ret_dict.update({'loss': loss})
+        return ret_dict
 
-    def get_best_params(self):
-        if not self.best_params:
-            raise AttributeError('Best hyperparameters not exist.')
-        return self.best_params
-
-    def optimize_lgb(self):
+    def _object_score_cv(self, params):
         """
-        The main entrance of optimizing LightGBM.
+        Using all hyperparameters to train LightGBM in a CV fashion. Return the objective function score.
         """
-        best_params = fmin(self._object_score, self.all_params, algo=tpe.suggest,
-                           max_evals=self.num_opts, trials=self.trials)
+        # we need to initialize folds every time
+        self._init_folds()
+        eval_hist = lightgbm.cv(params=params,
+                                train_set=self.train_dataset,
+                                num_boost_round=self.lgb_num_boost_round,
+                                folds=self._folds,
+                                nfold=None, stratified=None, shuffle=None, seed=None,
+                                metrics=None,
+                                fobj=None,
+                                feval=None,
+                                init_model=None,
+                                feature_name='auto',
+                                categorical_feature='auto',
+                                early_stopping_rounds=self.lgb_early_stopping_rounds,
+                                fpreproc=None,
+                                verbose_eval=-1,
+                                show_stdv=True,
+                                callbacks=[lightgbm.callback.reset_parameter(
+                                     learning_rate=lambda current_round: 0.6 * (0.99 ** current_round))],
+                                eval_train_metric=False)
+        # define return dict
+        ret_dict = {'status': STATUS_OK}
+        # get auc results
+        auc_mean = eval_hist['auc-mean']
+        ret_dict.update({'auc_mean': auc_mean})
+        # get all other metrics results
+        if 'binary_error' in params['metric'].split(','):
+            error_mean = eval_hist['binary_error-mean']
+            ret_dict.update({'binary_error-mean': error_mean})
+        # define loss, use [-1] to get last round result
+        loss = -auc_mean[-1]
+        ret_dict.update({'loss': loss})
+        return ret_dict
+    
+    def optimize(self):
+        """
+        The main entrance of optimizing LightGBM model.
+        """
+        if hasattr(self, '_n_splits'):
+            best_params = fmin(self._object_score_cv, self.all_params, algo=tpe.suggest,
+                               max_evals=self.num_opts, trials=self.trials)
+        else:
+            best_params = fmin(self._object_score, self.all_params, algo=tpe.suggest,
+                               max_evals=self.num_opts, trials=self.trials)
         # save trials for further fine-tune
         pickle.dump(self.trials, open(self.trials_path, "wb"))
         # store best hyperparameters
@@ -154,3 +214,8 @@ class LightgbmOptimizerBinary:
                                  callbacks=[lightgbm.callback.reset_parameter(
                                      learning_rate=lambda current_round: 0.6 * (0.99 ** current_round))])
         return lgb_clf
+
+    def get_best_params(self):
+        if not self.best_params:
+            raise AttributeError('Best hyperparameters not exist.')
+        return self.best_params
