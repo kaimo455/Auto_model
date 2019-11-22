@@ -83,7 +83,7 @@ class LightgbmOptimizerBinary:
         if self._load_trials:
             trials = pickle.load(open(self._trials_path, "rb"))
             current_iter = len(trials.losses())
-            self.num_opts += current_iter
+            self._num_opts += current_iter
         else:
             trials = Trials()
         return trials
@@ -207,7 +207,7 @@ class LightgbmOptimizerBinary:
         """
         # check if the hyperparameters is tuned
         if not hasattr(self, 'best_params'):
-            raise AttributeError('Best hyperparameters not exist.')
+            raise AttributeError('Best hyperparameters are not exist because not optimize yet.')
         lgb_clf = lightgbm.train(params=dict(self.best_params, **self._base_params),
                                  train_set=self.train_dataset,
                                  num_boost_round=self._lgb_num_boost_round,
