@@ -4,7 +4,7 @@ import json
 import pickle
 import numpy as np
 import pandas as pd
-from preprocessor import Preprocessor
+from .preprocessor import Preprocessor
 from sklearn.model_selection import train_test_split
 from hyperopt import fmin, tpe, hp, Trials, STATUS_OK
 
