@@ -83,8 +83,13 @@ class Preprocessor:
     def drop_null(self, features, col_drop_rate, row_drop_rate):
         """
         There we consider `np.NaN`, `np.inf`, ``''``(empty string), `None`  as null values.
-        
-        Return `dropped_data` DataFrame.
+        Args:
+            features ():
+            col_drop_rate ():
+            row_drop_rate ():
+
+        Returns:row and column dropped DataFrame, and row dropped index
+
         """
         print(f'Dropping column(s) and row(s) with ratio {col_drop_rate:.2f} and {row_drop_rate:.2f} respectively...',
               end=' ')
@@ -93,10 +98,12 @@ class Preprocessor:
         # drop columns and rows
         col_null_stats = self._get_null_stats(features, axis=0)
         row_null_stats = self._get_null_stats(features, axis=1)
-        dropped_data.drop(col_null_stats.index[col_null_stats >= col_drop_rate], axis=1, inplace=True)
-        dropped_data.drop(row_null_stats.index[row_null_stats >= row_drop_rate], axis=0, inplace=True)
+        col_drop_index = col_null_stats.index[col_null_stats >= col_drop_rate]
+        row_drop_index = row_null_stats.index[row_null_stats >= row_drop_rate]
+        dropped_data.drop(col_drop_index, axis=1, inplace=True)
+        dropped_data.drop(row_drop_index, axis=0, inplace=True)
         print('Finished.')
-        return dropped_data
+        return dropped_data, row_drop_index
 
     @staticmethod
     def fill_na(features, fill_na_method):
