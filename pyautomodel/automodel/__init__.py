@@ -69,6 +69,35 @@ PARAMS_EXAMPLES = {
                          'reg_lambda': (0, 4000),
                          'scale_pos_weight': (0.1, 1)}
     },
+    'catboost': {
+        'base_params': {'objective': 'Logloss',
+                        'custom_metric': ['Accuracy', 'AUC'],
+                        'eval_metric': 'AUC',
+                        'random_seed': 1213,
+                        'bootstrap_type': 'Bayesian',
+                        'bagging_temperature': 1,
+                        'use_best_model': True,
+                        'has_time': False,
+                        'leaf_estimation_method': 'Newton',
+                        'approx_on_full_history': False,
+                        'scale_pos_weight': 1,
+                        'boosting_type': 'Plain',
+                        'allow_const_label': False,
+                        'metric_period': 1},
+        'cat_params': {'sampling_frequency': ['PerTree', 'PerTreeLevel'], \
+                       'sampling_unit': ['Object'], \
+                       'grow_policy': ['SymmetricTree'], \
+                       'nan_mode': ['Min', 'Max', 'Forbidden']},
+        'int_params': {'max_depth': (5, 12, 1),
+                       'min_data_in_leaf': (1, 2, 1),
+                       'num_leaves': (31, 32, 4),
+                       'one_hot_max_size': (2, 3, 1),
+                       'fold_permutation_block': (1, 2, 1)},
+        'float_params': {'reg_lambda': (0, 50),
+                       'random_strength': (0.1, 1),
+                       'colsample_bylevel': (0.1, 1),
+                       'fold_len_multiplier': (2.0, 4.0)}
+    },
     'randomforest': {
         'base_params': {'bootstrap': True,
                         'oob_score': False,
@@ -120,4 +149,17 @@ PARAMS_EXAMPLES = {
         # updater | used in gblinear
         # feature_selector | used in gblinear
         # top_k | used in gblinear
+"""
+"""Catboost
+## unused hyperparmeters
+        # subsample | only used in bootstrap_type='Poisson|Bernoulli'
+        # mvs_reg | only used in bootstrap_type='MVS'
+        # leaf_estimation_backtracking | not used in leaf_estimation_method='Newton' for binary classification
+        # class_weight | using scale_pos_weight instead
+        # score_function | default: Correlation (NewtonL2 if the growing policy is set to Lossguide)
+        # leaf_estimation_iterations | default: Depends on the training objective
+        # ignored_features
+        # best_model_min_trees
+        # output_borders
+        # monotone_constraints
 """
