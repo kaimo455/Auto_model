@@ -2,4 +2,4 @@
 
 [x] Add LightgbmOptimizer cross-validation: K-Folds
 [ ] Add catboostOptimizer
-[ ] Add xgboostOptimizer
+[x] Add xgboostOptimizer
