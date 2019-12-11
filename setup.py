@@ -5,7 +5,7 @@ with open("README.md", 'r') as fh:
 
 setuptools.setup(
     name="pyautomodel",
-    version='0.10.3',
+    version='0.10.4',
     description="Automatic Machine Learning Model training",
     long_description=long_descrip,
     long_description_content_type="text/markdown",
@@ -16,9 +16,6 @@ setuptools.setup(
     url='https://github.com/kaimo455/Auto_model.git',
     download_url='https://github.com/kaimo455/Auto_model.git',
     packages=setuptools.find_packages(),
-    #py_modules=['lightgbm_optimizer'],
-    #scripts='placeholder',
-    #ext_modules='placeholder',
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
