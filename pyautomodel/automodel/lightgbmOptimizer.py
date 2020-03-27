@@ -17,7 +17,8 @@ class LightgbmOptimizerBinary:
     def __init__(self, data, label,
                  base_params: dict, cat_params: dict, int_params: dict, float_params: dict,
                  num_opts=1000, trials_path='./trials.pkl', load_trials=False,
-                 lgb_num_boost_round=3000, lgb_early_stopping_rounds=400, 
+                 lgb_num_boost_round=3000, lgb_early_stopping_rounds=400,
+                 lr_callback=None,
                  test_size=0.25, shuffle=True, random_state=1213,
                  cv=None, strategy='stratified', group=None):
         """LightGBM hyperparameters optimizer initializer.
@@ -28,6 +29,7 @@ class LightgbmOptimizerBinary:
             cat_params {dict} -- categorical hyperparameters to tune
             int_params {dict} -- integer hyperparameters to tune
             float_params {dict} -- float/double hyperparameters to tune
+            lr_callback {func} -- function take current_round as inputs to schedule lr
         
         Keyword Arguments:
             trials_path {str} -- hyperopt trials output file path, if load_trials is True then try to load current \
@@ -58,6 +60,7 @@ class LightgbmOptimizerBinary:
         self._all_params = self._init_params()
         # lightgbm other hyperparameter
         self._lgb_num_boost_round, self._lgb_early_stopping_rounds = lgb_num_boost_round, lgb_early_stopping_rounds
+        self._lr_callback = lr_callback
         # optimizer
         self._num_opts, self._trials_path, self._load_trials = num_opts, trials_path, load_trials
         self.trials = self._init_trials()
@@ -69,7 +72,7 @@ class LightgbmOptimizerBinary:
         cat_params_hp = {param: hp.choice(param, candidates) for param, candidates in self._cat_params.items()}
         # integer hyperparameters
         int_params_hp = {param: hp.choice(param, np.arange(*start_end_step, dtype=np.int))
-                              for param, start_end_step in self._int_params.items()}
+                         for param, start_end_step in self._int_params.items()}
         # float hyperparameters
         float_params_hp = {param: hp.uniform(param, *candidates) for param, candidates in self._float_params.items()}
         # generate all hyperparameters
@@ -87,7 +90,7 @@ class LightgbmOptimizerBinary:
         return trials
 
     def _init_folds(self):
-        self._folds = Preprocessor.make_folds(self.data, self.label, 
+        self._folds = Preprocessor.make_folds(self.data, self.label,
                                               n_splits=self._n_splits, strategy=self._strategy, group=self._group,
                                               shuffle=self._shuffle, random_state=self._random_state)
 
@@ -109,9 +112,9 @@ class LightgbmOptimizerBinary:
         """Split training and evaluating set
         Return (train_set, eval_set)
         """
-        X_train, X_eval, y_train, y_eval = train_test_split(data, label, 
-                                                            test_size=self._test_size, 
-                                                            random_state=self._random_state, 
+        X_train, X_eval, y_train, y_eval = train_test_split(data, label,
+                                                            test_size=self._test_size,
+                                                            random_state=self._random_state,
                                                             shuffle=self._shuffle)
         train_set = lightgbm.Dataset(X_train, y_train)
         eval_set = lightgbm.Dataset(X_eval, y_eval)
@@ -127,8 +130,7 @@ class LightgbmOptimizerBinary:
                                  valid_names=['Train', 'Eval'],
                                  early_stopping_rounds=self._lgb_early_stopping_rounds,
                                  verbose_eval=-1,
-                                 callbacks=[lightgbm.callback.reset_parameter(
-                                     learning_rate=lambda current_round: 0.6 * (0.99 ** current_round))])
+                                 callbacks=[lightgbm.callback.reset_parameter(learning_rate=self._lr_callback)])
         # define return dict
         ret_dict = {'status': STATUS_OK}
         # get auc results
@@ -163,8 +165,7 @@ class LightgbmOptimizerBinary:
                                 feature_name='auto', categorical_feature='auto',
                                 early_stopping_rounds=self._lgb_early_stopping_rounds,
                                 fpreproc=None, verbose_eval=-1, show_stdv=True,
-                                callbacks=[lightgbm.callback.reset_parameter(
-                                     learning_rate=lambda current_round: 0.6 * (0.99 ** current_round))],
+                                callbacks=[lightgbm.callback.reset_parameter(learning_rate=self._lr_callback)],
                                 eval_train_metric=False)
         # define return dict
         ret_dict = {'status': STATUS_OK}
@@ -179,16 +180,16 @@ class LightgbmOptimizerBinary:
         loss = -auc_mean[-1]
         ret_dict.update({'loss': loss})
         return ret_dict
-    
+
     def optimize(self):
         """The main entrance of optimizing LightGBM model.
         """
         if hasattr(self, '_n_splits'):
             self.best_params = fmin(self._object_score_cv, self._all_params, algo=tpe.suggest,
-                               max_evals=self._num_opts, trials=self.trials)
+                                    max_evals=self._num_opts, trials=self.trials)
         else:
             self.best_params = fmin(self._object_score, self._all_params, algo=tpe.suggest,
-                               max_evals=self._num_opts, trials=self.trials)
+                                    max_evals=self._num_opts, trials=self.trials)
         # save trials for further fine-tune
         pickle.dump(self.trials, open(self._trials_path, "wb"))
         # there are some params in best_params is index value
@@ -196,7 +197,7 @@ class LightgbmOptimizerBinary:
         self._index2value()
 
     def get_best_model(self):
-        """Use best hyperparameters to train lihgtgbm model.
+        """Use best hyperparameters to train LightGBM model.
         """
         # check if the hyperparameters is tuned
         if not hasattr(self, 'best_params'):
@@ -208,8 +209,7 @@ class LightgbmOptimizerBinary:
                                  valid_names=['Train', 'Eval'],
                                  early_stopping_rounds=self._lgb_early_stopping_rounds,
                                  verbose_eval=1,
-                                 callbacks=[lightgbm.callback.reset_parameter(
-                                     learning_rate=lambda current_round: 0.6 * (0.99 ** current_round))])
+                                 callbacks=[lightgbm.callback.reset_parameter(learning_rate=self._lr_callback)])
         return lgb_clf
 
     def get_best_params(self):
@@ -217,4 +217,3 @@ class LightgbmOptimizerBinary:
             return self.best_params
         else:
             raise AttributeError('Best hyperparameters not exist.')
-

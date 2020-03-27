@@ -17,7 +17,8 @@ class XgboostOptimizerBinary:
     def __init__(self, data, label,
                  base_params: dict, cat_params: dict, int_params: dict, float_params: dict,
                  num_opts=1000, trials_path='./trials.pkl', load_trials=False,
-                 xgb_num_boost_round=3000, xgb_early_stopping_rounds=400, 
+                 xgb_num_boost_round=3000, xgb_early_stopping_rounds=400,
+                 lr_callback=None,
                  test_size=0.25, shuffle=True, random_state=1213,
                  cv=None, strategy='stratified', group=None):
         """XGBoost hyperparameters optimizer initializer.
@@ -28,6 +29,7 @@ class XgboostOptimizerBinary:
             cat_params {dict} -- categorical hyperparameters to tune
             int_params {dict} -- integer hyperparameters to tune
             float_params {dict} -- float/double hyperparameters to tune
+            lr_callback {func} -- function take current_round and num_boost_round as inputs to schedule lr
         
         Keyword Arguments:
             trials_path {str} -- hyperopt trials output file path, if load_trials is True then try to load current
@@ -35,6 +37,7 @@ class XgboostOptimizerBinary:
             load_trials {bool} -- whether to load current exist trials file (default: {False})
             xgb_num_boost_round {int} -- number of training rounds for xgboost model (default: {3000})
             xgb_early_stopping_rounds {int} -- early stopping rounds for xgboost model (default: {400})
+
         """
         # store data and label we need to use this to generate folds generator
         self.data = data
@@ -58,6 +61,7 @@ class XgboostOptimizerBinary:
         self._all_params = self._init_params()
         # xgboost other hyperparameter
         self._num_boost_round, self._early_stopping_rounds = xgb_num_boost_round, xgb_early_stopping_rounds
+        self._lr_callback = lr_callback
         # optimizer
         self._num_opts, self._trials_path, self._load_trials = num_opts, trials_path, load_trials
         self.trials = self._init_trials()
@@ -72,7 +76,7 @@ class XgboostOptimizerBinary:
         cat_params_hp = {param: hp.choice(param, candidates) for param, candidates in self._cat_params.items()}
         # integer hyperparameters
         int_params_hp = {param: hp.choice(param, np.arange(*start_end_step, dtype=np.int))
-                              for param, start_end_step in self._int_params.items()}
+                         for param, start_end_step in self._int_params.items()}
         # float hyperparameters
         float_params_hp = {param: hp.uniform(param, *candidates) for param, candidates in self._float_params.items()}
         # generate all hyperparameters
@@ -91,7 +95,7 @@ class XgboostOptimizerBinary:
         return trials
 
     def _init_folds(self):
-        self._folds = Preprocessor.make_folds(self.data, self.label, 
+        self._folds = Preprocessor.make_folds(self.data, self.label,
                                               n_splits=self._n_splits, strategy=self._strategy, group=self._group,
                                               shuffle=self._shuffle, random_state=self._random_state)
 
@@ -114,9 +118,9 @@ class XgboostOptimizerBinary:
         Split training and evaluating set
         Return (train_set, eval_set)
         """
-        X_train, X_eval, y_train, y_eval = train_test_split(data, label, 
-                                                            test_size=self._test_size, 
-                                                            random_state=self._random_state, 
+        X_train, X_eval, y_train, y_eval = train_test_split(data, label,
+                                                            test_size=self._test_size,
+                                                            random_state=self._random_state,
                                                             shuffle=self._shuffle)
         train_set = xgboost.DMatrix(X_train, y_train)
         eval_set = xgboost.DMatrix(X_eval, y_eval)
@@ -132,9 +136,9 @@ class XgboostOptimizerBinary:
                                 num_boost_round=self._num_boost_round,
                                 evals=[(self.train_dataset, 'Train'), (self.eval_dataset, 'Eval')],
                                 early_stopping_rounds=self._early_stopping_rounds,
-                                evals_result = evals_result,
+                                evals_result=evals_result,
                                 verbose_eval=False,
-                                callbacks=[xgboost.callback.reset_learning_rate(lambda boosting_round, num_boost_round: 0.6 * (0.99 ** boosting_round))])
+                                callbacks=[xgboost.callback.reset_learning_rate(self._lr_callback)])
         # define return dict
         ret_dict = {'status': STATUS_OK}
         # get auc results
@@ -158,14 +162,14 @@ class XgboostOptimizerBinary:
         self._folds = list(self._folds)
         # get evaluation results
         eval_hist = xgboost.cv(params=params,
-                                dtrain=self.dataset,
-                                num_boost_round=self._num_boost_round,
-                                folds=self._folds,
-                                nfold=None, stratified=None, shuffle=None, seed=None,
-                                metrics=None, obj=None, feval=None, maximize=None,
-                                early_stopping_rounds=self._early_stopping_rounds,
-                                fpreproc=None, as_pandas=False, verbose_eval=False, show_stdv=True,
-                                callbacks=[xgboost.callback.reset_learning_rate(lambda boosting_round, num_boost_round: 0.6 * (0.99 ** boosting_round))])
+                               dtrain=self.dataset,
+                               num_boost_round=self._num_boost_round,
+                               folds=self._folds,
+                               nfold=None, stratified=None, shuffle=None, seed=None,
+                               metrics=None, obj=None, feval=None, maximize=None,
+                               early_stopping_rounds=self._early_stopping_rounds,
+                               fpreproc=None, as_pandas=False, verbose_eval=False, show_stdv=True,
+                               callbacks=[xgboost.callback.reset_learning_rate(self._lr_callback)])
         # define return dict
         ret_dict = {'status': STATUS_OK}
         # get auc results
@@ -180,17 +184,17 @@ class XgboostOptimizerBinary:
         loss = -(2 * auc_mean_test[-1] - auc_mean_train[-1])
         ret_dict.update({'loss': loss})
         return ret_dict
-    
+
     def optimize(self):
         """
         The main entrance of optimizing XGBoost model.
         """
         if hasattr(self, '_n_splits'):
             self.best_params = fmin(self._object_score_cv, self._all_params, algo=tpe.suggest,
-                               max_evals=self._num_opts, trials=self.trials)
+                                    max_evals=self._num_opts, trials=self.trials)
         else:
             self.best_params = fmin(self._object_score, self._all_params, algo=tpe.suggest,
-                               max_evals=self._num_opts, trials=self.trials)
+                                    max_evals=self._num_opts, trials=self.trials)
         # save trials for further fine-tune
         pickle.dump(self.trials, open(self._trials_path, "wb"))
         # there are some params in best_params is index value
@@ -210,7 +214,7 @@ class XgboostOptimizerBinary:
                                 evals=[(self.train_dataset, 'Train'), (self.eval_dataset, 'Eval')],
                                 early_stopping_rounds=self._early_stopping_rounds,
                                 verbose_eval=1,
-                                callbacks=[xgboost.callback.reset_learning_rate(lambda boosting_round, num_boost_round: 0.6 * (0.99 ** boosting_round))])
+                                callbacks=[xgboost.callback.reset_learning_rate(self._lr_callback)])
         return xgb_clf
 
     def get_best_params(self):
@@ -218,4 +222,3 @@ class XgboostOptimizerBinary:
             return self.best_params
         else:
             raise AttributeError('Best hyperparameters not exist.')
-
