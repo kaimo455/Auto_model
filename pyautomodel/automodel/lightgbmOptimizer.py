@@ -63,8 +63,7 @@ class LightgbmOptimizerBinary:
         self.trials = self._init_trials()
 
     def _init_params(self):
-        """
-        Initialize hyperparameters.
+        """Initialize hyperparameters.
         """
         # categorical hyperparameters
         cat_params_hp = {param: hp.choice(param, candidates) for param, candidates in self._cat_params.items()}
@@ -77,8 +76,7 @@ class LightgbmOptimizerBinary:
         return dict(self._base_params, **cat_params_hp, **int_params_hp, **float_params_hp)
 
     def _init_trials(self):
-        """
-        Initialize trials database.
+        """Initialize trials database.
         """
         if self._load_trials:
             trials = pickle.load(open(self._trials_path, "rb"))
@@ -108,8 +106,7 @@ class LightgbmOptimizerBinary:
             raise AttributeError('Best hyperparameters not exist.')
 
     def _make_hold_out(self, data, label):
-        """
-        Split training and evaluating set
+        """Split training and evaluating set
         Return (train_set, eval_set)
         """
         X_train, X_eval, y_train, y_eval = train_test_split(data, label, 
@@ -121,8 +118,7 @@ class LightgbmOptimizerBinary:
         return train_set, eval_set
 
     def _object_score(self, params):
-        """
-        Using all hyperparameters to train LightGBM. Return the objective function score.
+        """Using all hyperparameters to train LightGBM. Return the objective function score.
         """
         lgb_clf = lightgbm.train(params=params,
                                  train_set=self.train_dataset,
@@ -153,8 +149,7 @@ class LightgbmOptimizerBinary:
         return ret_dict
 
     def _object_score_cv(self, params):
-        """
-        Using all hyperparameters to train LightGBM in a CV fashion. Return the objective function score.
+        """Using all hyperparameters to train LightGBM in a CV fashion. Return the objective function score.
         """
         # we need to initialize folds every time training LightGBM because it's a generator
         self._init_folds()
@@ -186,8 +181,7 @@ class LightgbmOptimizerBinary:
         return ret_dict
     
     def optimize(self):
-        """
-        The main entrance of optimizing LightGBM model.
+        """The main entrance of optimizing LightGBM model.
         """
         if hasattr(self, '_n_splits'):
             self.best_params = fmin(self._object_score_cv, self._all_params, algo=tpe.suggest,
@@ -202,8 +196,7 @@ class LightgbmOptimizerBinary:
         self._index2value()
 
     def get_best_model(self):
-        """
-        Use best hyperparameters to train lihgtgbm model.
+        """Use best hyperparameters to train lihgtgbm model.
         """
         # check if the hyperparameters is tuned
         if not hasattr(self, 'best_params'):
